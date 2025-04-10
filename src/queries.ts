@@ -27,23 +27,43 @@ import {
   orderSifter,
   ownedOwnerScript,
 } from "@ickb/v1-core";
-import { txInfoPadding, type RootConfig, type WalletConfig } from "./utils.ts";
+import {
+  txInfoPadding,
+  type RootConfig,
+  type TxInfo,
+  type WalletConfig,
+} from "./utils.ts";
 import { addChange, base as add, convert } from "./transaction.ts";
 import type { Cell, Header, HexNumber, Transaction } from "@ckb-lumos/base";
 
-export function l1StateOptions(walletConfig: WalletConfig, isFrozen: boolean) {
+export interface L1StateType {
+  ckbNative: bigint;
+  ickbNative: bigint;
+  ckbBalance: bigint;
+  ickbBalance: bigint;
+  ckbAvailable: bigint;
+  ickbAvailable: bigint;
+  tipHeader: Readonly<I8Header>;
+  txBuilder: (isCkb2Udt: boolean, amount: bigint) => TxInfo;
+  hasMatchable: boolean;
+}
+
+export function l1StateOptions(
+  walletConfig: WalletConfig,
+  isFrozen: boolean,
+): ReturnType<
+  typeof queryOptions<L1StateType, unknown, L1StateType, string[]>
+> {
   return queryOptions({
     retry: true,
     refetchInterval: ({ state }) => 60000 * (state.data?.hasMatchable ? 1 : 10),
     staleTime: 10000,
     queryKey: [walletConfig.chain, walletConfig.address, "l1State"],
-    queryFn: async () => {
-      try {
-        return await getL1State(walletConfig);
-      } catch (e) {
+    queryFn: async (): Promise<L1StateType> => {
+      return getL1State(walletConfig).catch((e: unknown) => {
         console.log(e);
         throw e;
-      }
+      });
     },
     placeholderData: {
       ckbNative: 6n * CKB * CKB,
@@ -60,7 +80,7 @@ export function l1StateOptions(walletConfig: WalletConfig, isFrozen: boolean) {
   });
 }
 
-async function getL1State(walletConfig: WalletConfig) {
+async function getL1State(walletConfig: WalletConfig): Promise<L1StateType> {
   const { rpc, config, expander, getTxSizeOverhead } = walletConfig;
 
   const mixedCells = await getMixedCells(walletConfig);
@@ -71,7 +91,7 @@ async function getL1State(walletConfig: WalletConfig) {
 
   // Prefetch headers
   const wanted = new Set<HexNumber>();
-  const deferredGetHeader = (blockNumber: string) => {
+  const deferredGetHeader = (blockNumber: string): Readonly<I8Header> => {
     wanted.add(blockNumber);
     return headerPlaceholder;
   };
@@ -80,7 +100,7 @@ async function getL1State(walletConfig: WalletConfig) {
 
   // Prefetch txs outputs
   const wantedTxsOutputs = new Set<string>();
-  const deferredGetTxsOutputs = (txHash: string) => {
+  const deferredGetTxsOutputs = (txHash: string): never[] => {
     wantedTxsOutputs.add(txHash);
     return [];
   };
@@ -103,6 +123,7 @@ async function getL1State(walletConfig: WalletConfig) {
   } = ickbSifter(
     notCapacities,
     expander,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     (blockNumber) => headers.get(blockNumber)!,
     config,
   );
@@ -111,6 +132,7 @@ async function getL1State(walletConfig: WalletConfig) {
   // Partition between ripe and non ripe withdrawal requests
   const { mature, notMature } = maturityDiscriminator(
     withdrawalRequestGroups,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     (g) => g.ownedWithdrawalRequest.cellOutput.type![since],
     tipHeader,
   );
@@ -192,14 +214,14 @@ async function getL1State(walletConfig: WalletConfig) {
     feeRatePromise,
   ]);
 
-  const calculateFee = (tx: TransactionSkeletonType) => {
+  const calculateFee = (tx: TransactionSkeletonType): bigint => {
     const baseFee = calculateTxFee(txSize(tx) + txSizeOverhead, feeRate);
     // Use a fee that is multiple of N=1249
     const N = 1249n;
     return ((baseFee + (N - 1n)) / N) * N;
   };
 
-  const txBuilder = (isCkb2Udt: boolean, amount: bigint) => {
+  const txBuilder = (isCkb2Udt: boolean, amount: bigint): TxInfo => {
     if (amount > 0n) {
       return convert(
         txInfo,
@@ -235,7 +257,7 @@ async function getL1State(walletConfig: WalletConfig) {
   };
 }
 
-export async function prefetchData(rootConfig: RootConfig) {
+export async function prefetchData(rootConfig: RootConfig): Promise<void> {
   const { queryClient } = rootConfig;
   const dummy: WalletConfig = {
     ...rootConfig,
@@ -249,7 +271,9 @@ export async function prefetchData(rootConfig: RootConfig) {
   return queryClient.prefetchQuery(l1StateOptions(dummy, false));
 }
 
-async function getMixedCells(walletConfig: WalletConfig) {
+async function getMixedCells(
+  walletConfig: WalletConfig,
+): Promise<readonly Cell[]> {
   const { accountLocks, config, rpc } = walletConfig;
 
   return Object.freeze(
@@ -269,13 +293,13 @@ async function getMixedCells(walletConfig: WalletConfig) {
 async function getTxsOutputs(
   txHashes: Set<string>,
   walletConfig: WalletConfig,
-) {
+): Promise<Readonly<Map<string, readonly Cell[]>>> {
   const { chain, rpc, queryClient } = walletConfig;
 
-  const known: Readonly<Map<HexNumber, Readonly<Cell[]>>> =
+  const known: Readonly<Map<HexNumber, readonly Cell[]>> =
     queryClient.getQueryData([chain, "txsOutputs"]) ?? Object.freeze(new Map());
 
-  const result = new Map<string, Readonly<Cell[]>>();
+  const result = new Map<string, readonly Cell[]>();
   const batch = rpc.createBatchRequest();
   for (const txHash of txHashes) {
     const outputs = known.get(txHash);
@@ -294,10 +318,11 @@ async function getTxsOutputs(
     ({ transaction: tx }: { transaction: Transaction }) => tx,
   )) {
     result.set(
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       tx.hash!,
       Object.freeze(
         tx.outputs.map(({ lock, type, capacity }, index) =>
-          Object.freeze(<Cell>{
+          Object.freeze({
             cellOutput: Object.freeze({
               lock: Object.freeze(lock),
               type: Object.freeze(type),
@@ -305,10 +330,11 @@ async function getTxsOutputs(
             }),
             data: Object.freeze(tx.outputsData[index] ?? "0x"),
             outPoint: Object.freeze({
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               txHash: tx.hash!,
               index: hex(index),
             }),
-          }),
+          } as Cell),
         ),
       ),
     );
@@ -322,7 +348,7 @@ async function getTxsOutputs(
 async function getHeadersByNumber(
   wanted: Set<HexNumber>,
   walletConfig: WalletConfig,
-) {
+): Promise<Readonly<Map<string, Readonly<I8Header>>>> {
   const { chain, rpc, queryClient } = walletConfig;
 
   const known: Readonly<Map<HexNumber, Readonly<I8Header>>> =

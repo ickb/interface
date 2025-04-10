@@ -20,6 +20,7 @@ const testnetRootConfigPromise = chainConfigFrom(
     queryClient: new QueryClient(),
     cccClient: new ccc.ClientPublicTestnet(),
   };
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   prefetchData(rootConfig);
   return rootConfig;
 });
@@ -35,22 +36,25 @@ const mainnetRootConfigPromise = chainConfigFrom(
     queryClient: new QueryClient(),
     cccClient: new ccc.ClientPublicMainnet(),
   };
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   prefetchData(rootConfig);
   return rootConfig;
 });
 
-export async function startApp(wallet_chain: string) {
+export async function startApp(wallet_chain: string): Promise<void> {
   const [walletName, chain] = wallet_chain.split("_");
   const rootConfig = await (chain === "mainnet"
     ? mainnetRootConfigPromise
     : testnetRootConfigPromise);
 
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const signer = JoyId.getJoyIdSigners(
     rootConfig.cccClient,
     appName,
-    "https://ickb.org" + appIcon,
-  ).filter((i) => i.name === "CKB")[0].signer;
+    ["https://ickb.org", appIcon].join(""),
+  ).find((i) => i.name === "CKB")!.signer;
 
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const rootElement = document.getElementById("app")!;
   const root = createRoot(rootElement);
   rootElement.textContent = "";

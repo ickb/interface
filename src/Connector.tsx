@@ -7,6 +7,7 @@ import App from "./App.tsx";
 import Progress from "./Progress.tsx";
 import { Transaction, type Signer } from "@ckb-ccc/ccc";
 import type { TransactionSkeletonType } from "@ckb-lumos/helpers";
+import type { JSX } from "react/jsx-runtime";
 
 export default function Connector({
   rootConfig,
@@ -16,7 +17,7 @@ export default function Connector({
   rootConfig: RootConfig;
   signer: Signer;
   walletName: string;
-}) {
+}): JSX.Element {
   const {
     isPending,
     error,
@@ -37,6 +38,7 @@ export default function Connector({
       let accountLocks = [recommendedAddressObj, ...addressObjs].map((s) =>
         I8Script.from({
           ...i8ScriptPadding,
+          // eslint-disable-next-line @typescript-eslint/no-misused-spread
           ...s.script,
         }),
       );
@@ -47,7 +49,7 @@ export default function Connector({
         ).values(),
       ];
 
-      const expander = (c: Cell) => {
+      const expander = (c: Cell): Readonly<I8Script> | undefined => {
         const lock = c.cellOutput.lock;
         for (const s of accountLocks) {
           if (scriptEq(lock, s)) {
@@ -56,7 +58,9 @@ export default function Connector({
         }
       };
 
-      const getTxSizeOverhead = async (tx: TransactionSkeletonType) => {
+      const getTxSizeOverhead = async (
+        tx: TransactionSkeletonType,
+      ): Promise<number> => {
         const t0 = Transaction.fromLumosSkeleton(tx);
         const size0 = t0.toBytes().length; // +4
         const t1 = await signer.prepareTransaction(t0);
@@ -64,7 +68,9 @@ export default function Connector({
         return size1 - size0;
       };
 
-      const sendSigned = async (tx: TransactionSkeletonType) =>
+      const sendSigned = async (
+        tx: TransactionSkeletonType,
+      ): Promise<`0x${string}`> =>
         signer.sendTransaction(Transaction.fromLumosSkeleton(tx));
 
       return {

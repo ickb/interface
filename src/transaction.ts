@@ -30,7 +30,11 @@ import {
   type WalletConfig,
 } from "./utils.ts";
 import { ckbSoftCapPerDeposit } from "@ickb/v1-core";
-import { parseAbsoluteEpochSince, parseEpoch } from "@ckb-lumos/base/lib/since";
+import {
+  parseAbsoluteEpochSince,
+  parseEpoch,
+  type EpochSinceValue,
+} from "@ckb-lumos/base/lib/since";
 import { headerPlaceholder } from "./queries.ts";
 
 export function base({
@@ -46,7 +50,7 @@ export function base({
   >(),
   myOrders = new Array<MyOrder>(),
   tipHeader = headerPlaceholder,
-}) {
+}): Readonly<ConversionAttempt> {
   let { tx } = txInfo;
   const estimatedMaturities = [
     txInfo.estimatedMaturity,
@@ -78,6 +82,7 @@ export function base({
     estimatedMaturities.push(
       ...wrGroups.map((g) =>
         parseAbsoluteEpochSince(
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           g.ownedWithdrawalRequest.cellOutput.type![since],
         ),
       ),
@@ -90,15 +95,22 @@ export function base({
 
 type MyExtendedDeposit = ExtendedDeposit & { ickbCumulative: bigint };
 
+export interface ConversionAttempt {
+  tx: TransactionSkeletonType;
+  error: string;
+  fee: bigint;
+  estimatedMaturity: EpochSinceValue;
+}
+
 export function convert(
   txInfo: TxInfo,
   isCkb2Udt: boolean,
   amount: bigint,
-  deposits: Readonly<ExtendedDeposit[]>,
+  deposits: readonly ExtendedDeposit[],
   tipHeader: I8Header,
   calculateFee: (tx: TransactionSkeletonType) => bigint,
   walletConfig: WalletConfig,
-) {
+): Readonly<ConversionAttempt> {
   if (txInfo.error !== "") {
     return txInfo;
   }
@@ -132,7 +144,7 @@ export function convert(
   const depositAmount = ckbSoftCapPerDeposit(tipHeader);
   const N = isCkb2Udt ? Number(amount / depositAmount) : ickbPool.length;
   const txCache = Array<TxInfo | undefined>(N);
-  const attempt = (n: number) => {
+  const attempt = (n: number): Readonly<ConversionAttempt> => {
     n = N - n;
     return (txCache[n] =
       txCache[n] ??
@@ -161,11 +173,11 @@ function convertAttempt(
   txInfo: TxInfo,
   ratio: OrderRatio,
   depositAmount: bigint,
-  ickbPool: Readonly<MyExtendedDeposit[]>,
+  ickbPool: readonly MyExtendedDeposit[],
   tipHeader: I8Header,
   calculateFee: (tx: TransactionSkeletonType) => bigint,
   walletConfig: WalletConfig,
-) {
+): ConversionAttempt {
   let { tx } = txInfo;
   const { accountLocks, config } = walletConfig;
   const estimatedMaturities = [txInfo.estimatedMaturity];
@@ -240,21 +252,24 @@ export function addChange(
   txInfo: TxInfo,
   calculateFee: (tx: TransactionSkeletonType) => bigint,
   walletConfig: WalletConfig,
-) {
-  let { tx } = txInfo;
+): Readonly<{
+  tx: TransactionSkeletonType;
+  error: string;
+  fee: bigint;
+  estimatedMaturity: EpochSinceValue;
+}> {
   const { accountLocks, config } = walletConfig;
-  let txFee, freeCkb, freeIckb;
-  ({ tx, freeIckbUdt: freeIckb } = addIckbUdtChange(
-    tx,
+  const { tx: intermediateTx, freeIckbUdt: freeIckb } = addIckbUdtChange(
+    txInfo.tx,
     accountLocks[0],
     config,
-  ));
-  ({ tx, txFee, freeCkb } = addCkbChange(
-    tx,
+  );
+  const { tx, txFee, freeCkb } = addCkbChange(
+    intermediateTx,
     accountLocks[0],
     calculateFee,
     config,
-  ));
+  );
 
   const fee = txInfo.fee + txFee;
   txInfo = { ...txInfo, tx, fee };

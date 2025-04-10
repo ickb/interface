@@ -6,6 +6,7 @@ import {
 } from "./utils.ts";
 import { CKB, max, min, type I8Header } from "@ickb/lumos-utils";
 import { ckb2Ickb, ickb2Ckb } from "@ickb/v1-core";
+import type { JSX } from "react";
 
 export default function Form({
   rawText,
@@ -31,11 +32,13 @@ export default function Form({
   ickbBalance: bigint;
   ckbAvailable: bigint;
   ickbAvailable: bigint;
-}) {
+}): JSX.Element {
   const symbol = rawText[0];
   const text = rawText.slice(1);
   const isCkb2Udt = symbol2Direction(symbol);
-  const toggle = () => setRawText(direction2Symbol(!isCkb2Udt) + text);
+  const toggle = (): void => {
+    setRawText(direction2Symbol(!isCkb2Udt) + text);
+  };
 
   const nnn = min(max(ckbAvailable - reservedCKB, 0n), ckbNative);
   let a = {
@@ -77,7 +80,9 @@ export default function Form({
           disabled={isFrozen}
           autoFocus={true}
           value={text}
-          onChange={(e) => setRawText(symbol + e.target.value)}
+          onChange={(e) => {
+            setRawText(symbol + e.target.value);
+          }}
           autoComplete="off"
           inputMode="decimal"
           type="text"
@@ -108,7 +113,7 @@ export default function Form({
   );
 }
 
-function display(shannons: bigint, prefix: string) {
+function display(shannons: bigint, prefix: string): JSX.Element {
   const isMaturing = prefix === "⏳";
   return (
     <span className={"flex flex-row " + (isMaturing ? "cursor-wait" : "")}>
@@ -126,7 +131,7 @@ function approxConversion(
   isCkb2Udt: boolean,
   amount: bigint,
   tipHeader: I8Header,
-) {
+): string {
   let convertedAmount = isCkb2Udt
     ? ckb2Ickb(amount, tipHeader)
     : ickb2Ckb(amount, tipHeader);

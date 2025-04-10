@@ -1,10 +1,12 @@
+import type { JSX } from "react";
+
 export default function Progress({
   children,
   isDone,
 }: {
   children?: React.ReactNode;
   isDone?: boolean;
-}) {
+}): JSX.Element {
   if (isDone) {
     return <span className="col-span-full w-full pb-4">{children}</span>;
   }

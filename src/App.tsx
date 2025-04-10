@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useState, type JSX } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dashboard } from "./Dashboard.tsx";
 import Form from "./Form.tsx";
@@ -16,7 +16,11 @@ import Action from "./Action.tsx";
 import Progress from "./Progress.tsx";
 import { max } from "@ickb/lumos-utils";
 
-export default function App({ walletConfig }: { walletConfig: WalletConfig }) {
+export default function App({
+  walletConfig,
+}: {
+  walletConfig: WalletConfig;
+}): JSX.Element {
   const [isFrozen, freeze] = useState(false);
   const [rawText, setRawText] = useState(direction2Symbol(true));
   const symbol = rawText[0];
@@ -32,6 +36,7 @@ export default function App({ walletConfig }: { walletConfig: WalletConfig }) {
     ckbBalance,
     ickbBalance,
     tipHeader,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   } = useQuery(l1StateOptions(walletConfig, isFrozen)).data!;
 
   const conversionCap = isCkb2Udt
@@ -42,7 +47,9 @@ export default function App({ walletConfig }: { walletConfig: WalletConfig }) {
     text = toText(conversionCap);
   }
 
-  const formReset = () => setRawText(direction2Symbol(isCkb2Udt));
+  const formReset = (): void => {
+    setRawText(direction2Symbol(isCkb2Udt));
+  };
   const deferredActionParams = useDeferredValue({
     isCkb2Udt,
     amount,

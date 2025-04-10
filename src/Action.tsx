@@ -7,7 +7,7 @@ import {
 } from "./utils.ts";
 import Progress from "./Progress.tsx";
 import { l1StateOptions } from "./queries.ts";
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { isPopulated, type I8Header } from "@ickb/lumos-utils";
 import { useQuery } from "@tanstack/react-query";
 import { parseEpoch, type EpochSinceValue } from "@ckb-lumos/base/lib/since";
@@ -24,10 +24,10 @@ export default function Action({
   freeze: (s: boolean) => void;
   formReset: () => void;
   walletConfig: WalletConfig;
-}) {
+}): JSX.Element {
   const [message, setMessage] = useState("");
   const [frozenTxInfo, _setFrozenTxInfo] = useState(txInfoPadding);
-  const freezeTxInfo = (txInfo: TxInfo) => {
+  const freezeTxInfo = (txInfo: TxInfo): void => {
     _setFrozenTxInfo(txInfo);
     freeze(txInfo != txInfoPadding);
   };
@@ -37,6 +37,7 @@ export default function Action({
     isStale,
     isFetching,
   } = useQuery(l1StateOptions(walletConfig, isFrozen));
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const { txBuilder, tipHeader } = l1Data!;
   const txInfo = isFrozen ? frozenTxInfo : txBuilder(isCkb2Udt, amount);
   const isValid =
@@ -57,8 +58,9 @@ export default function Action({
         <button
           className="text-s col-span-2 min-h-12 w-full cursor-pointer rounded border-2 border-amber-400 px-8 leading-relaxed font-bold tracking-wider text-amber-400 uppercase disabled:cursor-default disabled:opacity-50"
           {...{
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onClick: isStale
-              ? () =>
+              ? async (): Promise<void> =>
                   walletConfig.queryClient.invalidateQueries({
                     queryKey: [
                       walletConfig.chain,
@@ -66,7 +68,7 @@ export default function Action({
                       "l1State",
                     ],
                   })
-              : () =>
+              : async (): Promise<void> =>
                   transact(
                     txInfo,
                     freezeTxInfo,
@@ -108,7 +110,7 @@ async function transact(
   setMessage: (message: string) => void,
   formReset: () => void,
   walletConfig: WalletConfig,
-) {
+): Promise<void> {
   const { rpc, sendSigned, queryClient } = walletConfig;
   try {
     freezeTxInfo(txInfo);
@@ -128,7 +130,7 @@ async function transact(
     } else {
       setMessage("Something went wrong, retry in a minute");
     }
-    queryClient.invalidateQueries(l1StateOptions(walletConfig, true));
+    await queryClient.invalidateQueries(l1StateOptions(walletConfig, true));
     await new Promise((r) => setTimeout(r, 10000));
   } finally {
     setMessage("");
@@ -136,7 +138,13 @@ async function transact(
   }
 }
 
-function timeUntilEpoch(e: EpochSinceValue, tipHeader: I8Header) {
+function timeUntilEpoch(
+  e: EpochSinceValue,
+  tipHeader: I8Header,
+): {
+  maturity: string;
+  isReady: boolean;
+} {
   const t = parseEpoch(tipHeader.epoch);
   const epochs = e.index / e.length - t.index / t.length + e.number - t.number;
   if (epochs <= 0) {

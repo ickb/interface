@@ -1,6 +1,7 @@
+import type { JSX } from "react";
 import type { WalletConfig } from "./utils.ts";
 
-export function EmptyDashboard() {
+export function EmptyDashboard(): JSX.Element {
   return (
     <>
       <h1 className="flex flex-row items-center justify-center py-4 text-5xl font-medium">
@@ -12,7 +13,11 @@ export function EmptyDashboard() {
   );
 }
 
-export function Dashboard({ walletConfig }: { walletConfig: WalletConfig }) {
+export function Dashboard({
+  walletConfig,
+}: {
+  walletConfig: WalletConfig;
+}): JSX.Element {
   const { chain, address } = walletConfig;
   const href = `https://${chain !== "mainnet" ? "testnet." : ""}explorer.nervos.org/address/${address}`;
   return (

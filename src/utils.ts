@@ -26,15 +26,15 @@ export interface WalletConfig extends RootConfig {
   sendSigned: (tx: TransactionSkeletonType) => Promise<`0x${string}`>;
 }
 
-export function symbol2Direction(s: string) {
+export function symbol2Direction(s: string): boolean {
   return s === "C";
 }
 
-export function direction2Symbol(d: boolean) {
+export function direction2Symbol(d: boolean): string {
   return d ? "C" : "I";
 }
 
-export function sanitize(text: string) {
+export function sanitize(text: string): string {
   // Filter leading zeros
   let i = 0;
   for (; i < text.length; i++) {
@@ -77,18 +77,16 @@ export function sanitize(text: string) {
   );
 }
 
-export function toText(n: bigint) {
+export function toText(n: bigint): string {
   return (
     (n / CKB).toLocaleString("en-US") +
     String(Number(n % CKB) / Number(CKB)).slice(1)
   );
 }
 
-export function toBigInt(text: string) {
+export function toBigInt(text: string): bigint {
   const [decimal, ...fractionals] = text.split(",").join("").split(".");
-  return BigInt(
-    (decimal ?? "0") + ((fractionals ?? []).join("") + "00000000").slice(0, 8),
-  );
+  return BigInt(decimal + (fractionals.join("") + "00000000").slice(0, 8));
 }
 
 // Estimate bot ability to fulfill orders:
@@ -98,7 +96,7 @@ export function orderMaturityEstimate(
   isCkb2Udt: boolean,
   amount: bigint,
   tipHeader: I8Header,
-) {
+): Readonly<EpochSinceValue> {
   return Object.freeze(
     epochSinceAdd(parseEpoch(tipHeader.epoch), {
       number: 0,
@@ -108,15 +106,15 @@ export function orderMaturityEstimate(
   );
 }
 
-export function maxEpoch(ee: EpochSinceValue[]) {
+export function maxEpoch(ee: EpochSinceValue[]): EpochSinceValue {
   return ee.reduce((a, b) => (epochSinceCompare(a, b) === -1 ? b : a));
 }
 
-export const epochSinceValuePadding = Object.freeze(<EpochSinceValue>{
+export const epochSinceValuePadding = Object.freeze({
   number: 0,
   index: 0,
   length: 1,
-});
+} as EpochSinceValue);
 
 export type TxInfo = Readonly<{
   tx: TransactionSkeletonType;
