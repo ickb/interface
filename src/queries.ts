@@ -214,12 +214,8 @@ async function getL1State(walletConfig: WalletConfig): Promise<L1StateType> {
     feeRatePromise,
   ]);
 
-  const calculateFee = (tx: TransactionSkeletonType): bigint => {
-    const baseFee = calculateTxFee(txSize(tx) + txSizeOverhead, feeRate);
-    // Use a fee that is multiple of N=1249
-    const N = 1249n;
-    return ((baseFee + (N - 1n)) / N) * N;
-  };
+  const calculateFee = (tx: TransactionSkeletonType): bigint =>
+    calculateTxFee(txSize(tx) + txSizeOverhead, feeRate);
 
   const txBuilder = (isCkb2Udt: boolean, amount: bigint): TxInfo => {
     if (amount > 0n) {
