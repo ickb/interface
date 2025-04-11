@@ -1,18 +1,19 @@
 import {
-  calculateRatio,
   direction2Symbol,
+  previewConversion,
   reservedCKB,
   symbol2Direction,
   toText,
 } from "./utils.ts";
-import { CKB, max, min, type I8Header } from "@ickb/lumos-utils";
+import { CKB, max, min } from "@ickb/lumos-utils";
+import type { OrderRatio } from "@ickb/v1-core";
 import type { JSX } from "react";
 
 export default function Form({
   rawText,
   setRawText,
   amount,
-  tipHeader,
+  calculateRatio,
   isFrozen,
   ckbNative,
   ickbNative,
@@ -24,7 +25,7 @@ export default function Form({
   rawText: string;
   setRawText: (s: string) => void;
   amount: bigint;
-  tipHeader: I8Header;
+  calculateRatio: (isCkb2Udt: boolean, amount: bigint) => OrderRatio;
   isFrozen: boolean;
   ckbNative: bigint;
   ickbNative: bigint;
@@ -98,10 +99,10 @@ export default function Form({
           ⇌
         </button>
         <span className="text-center">
-          {approxConversion(isCkb2Udt, CKB, tipHeader) + " " + b.name}
+          {textConversionPreview(isCkb2Udt, CKB, calculateRatio)} {b.name}
         </span>
         <span className="col-span-3 text-center text-3xl text-amber-400">
-          ⏳{approxConversion(isCkb2Udt, amount, tipHeader)}
+          ⏳{textConversionPreview(isCkb2Udt, amount, calculateRatio)}
         </span>
         <span className="text-amber-400">{display(b.native, "✅")}</span>
         <span className="text-2xl text-amber-400">{b.name}</span>
@@ -127,17 +128,12 @@ function display(shannons: bigint, prefix: string): JSX.Element {
   );
 }
 
-function approxConversion(
+function textConversionPreview(
   isCkb2Udt: boolean,
   amount: bigint,
-  tipHeader: I8Header,
+  calculateRatio: (isCkb2Udt: boolean, amount: bigint) => OrderRatio,
 ): string {
-  //Worst case scenario is a 0.1% fee for bot
-  const { ckbMultiplier, udtMultiplier } = calculateRatio(isCkb2Udt, tipHeader);
-
-  const convertedAmount = isCkb2Udt
-    ? (amount * ckbMultiplier) / udtMultiplier
-    : (amount * udtMultiplier) / ckbMultiplier;
-
-  return toText(convertedAmount);
+  return toText(
+    previewConversion(isCkb2Udt, amount, calculateRatio(isCkb2Udt, amount)),
+  );
 }

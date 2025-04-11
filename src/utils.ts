@@ -13,7 +13,7 @@ import {
   type I8Script,
 } from "@ickb/lumos-utils";
 import { parseEpoch, type EpochSinceValue } from "@ckb-lumos/base/lib/since";
-import { ickbExchangeRatio, type OrderRatio } from "@ickb/v1-core";
+import type { OrderRatio } from "@ickb/v1-core";
 
 export interface RootConfig extends ChainConfig {
   queryClient: QueryClient;
@@ -134,16 +134,13 @@ export const txInfoPadding: TxInfo = Object.freeze({
 // reservedCKB are reserved for state rent in conversions
 export const reservedCKB = 1000n * CKB;
 
-// Fix up ratio to pay 0.1% fee to bot
-export function calculateRatio(
+export function previewConversion(
   isCkb2Udt: boolean,
-  tipHeader: I8Header,
-): OrderRatio {
-  const { ckbMultiplier, udtMultiplier } = ickbExchangeRatio(tipHeader);
-  return {
-    ckbMultiplier,
-    //   Pay 0.1% fee to bot
-    udtMultiplier:
-      udtMultiplier + (isCkb2Udt ? 1n : -1n) * (udtMultiplier / 1000n),
-  };
+  amount: bigint,
+  ratio: OrderRatio,
+): bigint {
+  const { ckbMultiplier, udtMultiplier } = ratio;
+  return isCkb2Udt
+    ? (amount * ckbMultiplier) / udtMultiplier
+    : (amount * udtMultiplier) / ckbMultiplier;
 }

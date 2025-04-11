@@ -22,7 +22,6 @@ import {
   type OrderRatio,
 } from "@ickb/v1-core";
 import {
-  calculateRatio,
   maxEpoch,
   orderMaturityEstimate,
   txInfoPadding,
@@ -108,6 +107,7 @@ export function convert(
   amount: bigint,
   deposits: readonly ExtendedDeposit[],
   tipHeader: I8Header,
+  calculateRatio: (isCkb2Udt: boolean, amount: bigint) => OrderRatio,
   calculateFee: (tx: TransactionSkeletonType) => bigint,
   walletConfig: WalletConfig,
 ): Readonly<ConversionAttempt> {
@@ -132,8 +132,6 @@ export function convert(
     }
   }
   Object.freeze(ickbPool);
-
-  const ratio = calculateRatio(isCkb2Udt, tipHeader);
   const depositAmount = ckbSoftCapPerDeposit(tipHeader);
   const N = isCkb2Udt ? Number(amount / depositAmount) : ickbPool.length;
   const txCache = Array<TxInfo | undefined>(N);
@@ -146,10 +144,10 @@ export function convert(
         isCkb2Udt,
         amount,
         txInfo,
-        ratio,
         depositAmount,
         ickbPool,
         tipHeader,
+        calculateRatio,
         calculateFee,
         walletConfig,
       ));
@@ -164,10 +162,10 @@ function convertAttempt(
   isCkb2Udt: boolean,
   amount: bigint,
   txInfo: TxInfo,
-  ratio: OrderRatio,
   depositAmount: bigint,
   ickbPool: readonly MyExtendedDeposit[],
   tipHeader: I8Header,
+  calculateRatio: (isCkb2Udt: boolean, amount: bigint) => OrderRatio,
   calculateFee: (tx: TransactionSkeletonType) => bigint,
   walletConfig: WalletConfig,
 ): ConversionAttempt {
@@ -209,6 +207,7 @@ function convertAttempt(
 
   let fee = txInfo.fee;
   if (amount > 0n) {
+    const ratio = calculateRatio(isCkb2Udt, amount);
     tx = orderMint(
       tx,
       accountLocks[0],
@@ -218,7 +217,7 @@ function convertAttempt(
       isCkb2Udt ? ratio : undefined,
       isCkb2Udt ? undefined : ratio,
     );
-    // 0.1% fee to bot
+    // Take in account the fee paid to the bot
     fee += isCkb2Udt
       ? amount -
         ickb2Ckb(

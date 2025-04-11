@@ -20,12 +20,14 @@ import {
 } from "@ickb/lumos-utils";
 import {
   ickbDelta,
+  ickbExchangeRatio,
   ickbLogicScript,
   ickbPoolSifter,
   ickbSifter,
   limitOrderScript,
   orderSifter,
   ownedOwnerScript,
+  type OrderRatio,
 } from "@ickb/v1-core";
 import {
   txInfoPadding,
@@ -44,6 +46,7 @@ export interface L1StateType {
   ckbAvailable: bigint;
   ickbAvailable: bigint;
   tipHeader: Readonly<I8Header>;
+  calculateRatio: (isCkb2Udt: boolean, amount: bigint) => OrderRatio;
   txBuilder: (isCkb2Udt: boolean, amount: bigint) => TxInfo;
   hasMatchable: boolean;
 }
@@ -73,6 +76,7 @@ export function l1StateOptions(
       ckbBalance: 6n * CKB * CKB,
       ickbBalance: 3n * CKB * CKB,
       tipHeader: headerPlaceholder,
+      calculateRatio: () => ({ ckbMultiplier: 1n, udtMultiplier: 1n }),
       txBuilder: () => txInfoPadding,
       hasMatchable: false,
     },
@@ -217,6 +221,18 @@ async function getL1State(walletConfig: WalletConfig): Promise<L1StateType> {
   const calculateFee = (tx: TransactionSkeletonType): bigint =>
     calculateTxFee(txSize(tx) + txSizeOverhead, feeRate);
 
+  const currentRatio = ickbExchangeRatio(tipHeader);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const calculateRatio = (isCkb2Udt: boolean, _amount: bigint): OrderRatio => {
+    return {
+      ...currentRatio,
+      udtMultiplier:
+        currentRatio.udtMultiplier +
+        //   Pay 0.1% fee to bot
+        (isCkb2Udt ? 1n : -1n) * (currentRatio.udtMultiplier / 1000n),
+    };
+  };
+
   const txBuilder = (isCkb2Udt: boolean, amount: bigint): TxInfo => {
     if (amount > 0n) {
       return convert(
@@ -225,6 +241,7 @@ async function getL1State(walletConfig: WalletConfig): Promise<L1StateType> {
         amount,
         ickbPool,
         tipHeader,
+        calculateRatio,
         calculateFee,
         walletConfig,
       );
@@ -248,6 +265,7 @@ async function getL1State(walletConfig: WalletConfig): Promise<L1StateType> {
     ckbAvailable,
     ickbAvailable,
     tipHeader,
+    calculateRatio,
     txBuilder,
     hasMatchable,
   };

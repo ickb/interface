@@ -36,6 +36,7 @@ export default function App({
     ckbBalance,
     ickbBalance,
     tipHeader,
+    calculateRatio,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   } = useQuery(l1StateOptions(walletConfig, isFrozen)).data!;
 
@@ -77,7 +78,7 @@ export default function App({
           rawText: symbol + text,
           setRawText,
           amount,
-          tipHeader,
+          calculateRatio,
           isFrozen,
           ckbNative,
           ickbNative,
