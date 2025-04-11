@@ -1,11 +1,11 @@
 import {
+  calculateRatio,
   direction2Symbol,
   reservedCKB,
   symbol2Direction,
   toText,
 } from "./utils.ts";
 import { CKB, max, min, type I8Header } from "@ickb/lumos-utils";
-import { ckb2Ickb, ickb2Ckb } from "@ickb/v1-core";
 import type { JSX } from "react";
 
 export default function Form({
@@ -132,10 +132,12 @@ function approxConversion(
   amount: bigint,
   tipHeader: I8Header,
 ): string {
-  let convertedAmount = isCkb2Udt
-    ? ckb2Ickb(amount, tipHeader)
-    : ickb2Ckb(amount, tipHeader);
   //Worst case scenario is a 0.1% fee for bot
-  convertedAmount -= convertedAmount / 1000n;
+  const { ckbMultiplier, udtMultiplier } = calculateRatio(isCkb2Udt, tipHeader);
+
+  const convertedAmount = isCkb2Udt
+    ? (amount * ckbMultiplier) / udtMultiplier
+    : (amount * udtMultiplier) / ckbMultiplier;
+
   return toText(convertedAmount);
 }

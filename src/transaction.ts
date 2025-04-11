@@ -14,7 +14,6 @@ import {
   addWithdrawalRequestGroups,
   ickb2Ckb,
   ickbDeposit,
-  ickbExchangeRatio,
   ickbRequestWithdrawalFrom,
   orderMelt,
   orderMint,
@@ -23,6 +22,7 @@ import {
   type OrderRatio,
 } from "@ickb/v1-core";
 import {
+  calculateRatio,
   maxEpoch,
   orderMaturityEstimate,
   txInfoPadding,
@@ -133,14 +133,7 @@ export function convert(
   }
   Object.freeze(ickbPool);
 
-  const { ckbMultiplier, udtMultiplier } = ickbExchangeRatio(tipHeader);
-  const ratio: OrderRatio = {
-    ckbMultiplier,
-    //   Pay 0.1% fee to bot
-    udtMultiplier:
-      udtMultiplier + (isCkb2Udt ? 1n : -1n) * (udtMultiplier / 1000n),
-  };
-
+  const ratio = calculateRatio(isCkb2Udt, tipHeader);
   const depositAmount = ckbSoftCapPerDeposit(tipHeader);
   const N = isCkb2Udt ? Number(amount / depositAmount) : ickbPool.length;
   const txCache = Array<TxInfo | undefined>(N);
