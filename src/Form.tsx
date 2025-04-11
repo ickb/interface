@@ -1,6 +1,7 @@
 import {
-  calculateRatio,
+  calculateOrderRatio,
   direction2Symbol,
+  calculateOrderResult,
   reservedCKB,
   symbol2Direction,
   toText,
@@ -98,7 +99,7 @@ export default function Form({
           ⇌
         </button>
         <span className="text-center">
-          {approxConversion(isCkb2Udt, CKB, tipHeader) + " " + b.name}
+          {approxConversion(isCkb2Udt, CKB, tipHeader)} {b.name}
         </span>
         <span className="col-span-3 text-center text-3xl text-amber-400">
           ⏳{approxConversion(isCkb2Udt, amount, tipHeader)}
@@ -132,12 +133,12 @@ function approxConversion(
   amount: bigint,
   tipHeader: I8Header,
 ): string {
-  //Worst case scenario is a 0.1% fee for bot
-  const { ckbMultiplier, udtMultiplier } = calculateRatio(isCkb2Udt, tipHeader);
-
-  const convertedAmount = isCkb2Udt
-    ? (amount * ckbMultiplier) / udtMultiplier
-    : (amount * udtMultiplier) / ckbMultiplier;
-
-  return toText(convertedAmount);
+  //Worst case scenario is a 0.001% fee for bot
+  return toText(
+    calculateOrderResult(
+      isCkb2Udt,
+      amount,
+      calculateOrderRatio(isCkb2Udt, tipHeader),
+    ),
+  );
 }

@@ -22,7 +22,8 @@ import {
   type OrderRatio,
 } from "@ickb/v1-core";
 import {
-  calculateRatio,
+  calculateOrderRatio,
+  calculateOrderResult,
   maxEpoch,
   orderMaturityEstimate,
   txInfoPadding,
@@ -133,7 +134,7 @@ export function convert(
   }
   Object.freeze(ickbPool);
 
-  const ratio = calculateRatio(isCkb2Udt, tipHeader);
+  const ratio = calculateOrderRatio(isCkb2Udt, tipHeader);
   const depositAmount = ckbSoftCapPerDeposit(tipHeader);
   const N = isCkb2Udt ? Number(amount / depositAmount) : ickbPool.length;
   const txCache = Array<TxInfo | undefined>(N);
@@ -207,7 +208,7 @@ function convertAttempt(
     }
   }
 
-  let fee = txInfo.fee;
+  let orderFee = 0n;
   if (amount > 0n) {
     tx = orderMint(
       tx,
@@ -218,15 +219,11 @@ function convertAttempt(
       isCkb2Udt ? ratio : undefined,
       isCkb2Udt ? undefined : ratio,
     );
-    // 0.1% fee to bot
-    fee += isCkb2Udt
-      ? amount -
-        ickb2Ckb(
-          (amount * ratio.ckbMultiplier) / ratio.udtMultiplier,
-          tipHeader,
-        )
-      : ickb2Ckb(amount, tipHeader) -
-        (amount * ratio.udtMultiplier) / ratio.ckbMultiplier;
+
+    const convertedAmount = calculateOrderResult(isCkb2Udt, amount, ratio);
+    orderFee += isCkb2Udt
+      ? amount - ickb2Ckb(convertedAmount, tipHeader)
+      : ickb2Ckb(amount, tipHeader) - convertedAmount;
 
     estimatedMaturities.push(
       orderMaturityEstimate(isCkb2Udt, amount, tipHeader),
@@ -234,11 +231,22 @@ function convertAttempt(
   }
 
   const estimatedMaturity = maxEpoch(estimatedMaturities);
-  return addChange(
-    { ...txInfo, tx, estimatedMaturity, fee },
+
+  txInfo = addChange(
+    { ...txInfo, tx, estimatedMaturity, fee: txInfo.fee + orderFee },
     calculateFee,
     walletConfig,
   );
+
+  // Check that order provides enough fee to the bot for being matched
+  if (!txInfo.error && 10n * (txInfo.fee - orderFee) > orderFee) {
+    if (isCkb2Udt) {
+      return { ...txInfo, error: "CKB amount too small" };
+    } else {
+      return { ...txInfo, error: "iCKB amount too small" };
+    }
+  }
+  return txInfo;
 }
 
 export function addChange(
