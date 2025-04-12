@@ -132,7 +132,7 @@ export const txInfoPadding: TxInfo = Object.freeze({
 });
 
 // reservedCKB are reserved for state rent in conversions
-export const reservedCKB = 1000n * CKB;
+export const reservedCKB = 600n * CKB;
 
 // Calculate ratio in a way to pay 0.001% fee to bot
 export function calculateOrderRatio(
