@@ -11,7 +11,7 @@ const appName = "iCKB DApp";
 
 const testnetRootConfigPromise = chainConfigFrom(
   "testnet",
-  undefined,
+  "https://testnet.ckb.dev/",
   true,
   getIckbScriptConfigs,
 ).then((chainConfig) => {
@@ -27,7 +27,7 @@ const testnetRootConfigPromise = chainConfigFrom(
 
 const mainnetRootConfigPromise = chainConfigFrom(
   "mainnet",
-  "https://mainnet.ckbapp.dev/",
+  "https://mainnet.ckb.dev/",
   true,
   getIckbScriptConfigs,
 ).then((chainConfig) => {
